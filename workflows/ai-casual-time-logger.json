@@ -1,0 +1,508 @@
+{
+  "name": "AI Casual Time-Logger",
+  "nodes": [
+    {
+      "parameters": {
+        "updates": [
+          "message"
+        ],
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        544,
+        -416
+      ],
+      "id": "28d2fa18-5167-4758-8f3b-5c8426deb3a0",
+      "name": "Telegram Trigger",
+      "webhookId": "25fe0f28-1852-4401-b075-ac7c134ac3f6",
+      "credentials": {
+        "telegramApi": {
+          "id": "j6UoP8DnUHEyNaPv",
+          "name": "Bliksem Acc"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "includeTime": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Include_Current_Time', ``, 'boolean') }}",
+        "outputFieldName": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Output_Field_Name', ``, 'string') }}",
+        "options": {
+          "timezone": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Timezone', ``, 'string') }}"
+        }
+      },
+      "type": "n8n-nodes-base.dateTimeTool",
+      "typeVersion": 2,
+      "position": [
+        720,
+        320
+      ],
+      "id": "9f577e0e-2e68-431b-9510-cf6c31ea2c7d",
+      "name": "Date & Time"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $('Telegram Trigger').item.json.message.text }}",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "=# Purpose\nYou are an expert backend data extraction agent. Analyze casual, informal developer logs and format them into structured, corporate-ready data.\n\n# Rules\n1. Process the incoming text and extract the fields accurately.\n2. Use your Date & Time tool if necessary to calculate dates, timelines, or timestamps related to the work logs.\n3. Provide your final response strictly through the structured output tool provided by the canvas parser.\n\n# Extraction Schema & Logic\nExtract and transform the input text into these specific fields:\n- \"destination_app\": Identify which application the user wants to route this message to based on context. If they don't specify, default to Discord.\n- \"project_name\": The client or project name identified from the text.\n- \"minutes_worked\": Total time spent, converted mathematically into a single integer representing total minutes.\n- \"professional_description\": Casual notes or slang rewritten into corporate-ready, professional phrasing using strong action verbs.\n"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        592,
+        0
+      ],
+      "id": "403a0792-6719-451b-a9ab-d8b4b84e8c77",
+      "name": "Data Extraction Agent"
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n  \"destination_app\": \"\",\n  \"project_name\": \"\",\n  \"minutes_worked\": 0,\n  \"professional_description\": \"\"\n}\n"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        864,
+        320
+      ],
+      "id": "090878ff-8371-4ba8-8768-f247ec9db589",
+      "name": "Output Parser"
+    },
+    {
+      "parameters": {
+        "operation": "sendChatAction",
+        "chatId": "={{ $json.message.chat.id }}"
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        784,
+        -416
+      ],
+      "id": "756c74be-411f-4735-b8e9-68fc93eb0f1f",
+      "name": "Action: Typing",
+      "webhookId": "c1a4f48b-6840-43e6-acd1-70adfe0ade4d",
+      "credentials": {
+        "telegramApi": {
+          "id": "j6UoP8DnUHEyNaPv",
+          "name": "Bliksem Acc"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "return $input.all().map(item => {\n  // Use 'item' instead of '$input.first()' to support batch processing safely\n  const aiData = item.json.output;\n\n  return {\n    json: {\n      destination_app: aiData?.destination_app || \"Discord\",\n      project_name: aiData?.project_name || \"Unknown Project\",\n      minutes_worked: Number(aiData?.minutes_worked) || 0,\n      professional_description: aiData?.professional_description || \"No description provided.\"\n    }\n  };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        944,
+        0
+      ],
+      "id": "2cd93082-d168-4844-a671-987873a7d0d3",
+      "name": "Data organizer"
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "sendTo": "test@gmail.com",
+        "subject": "=📝 New Work Log Submitted",
+        "emailType": "text",
+        "message": "={{ `### 📝 New Work Log Submitted  ---  - **📁 Project:** ${$json.project_name} - **⏱️ Duration:** ${$json.minutes_worked} minutes - **💼 Professional Summary:** ${$json.professional_description}` }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1552,
+        -160
+      ],
+      "id": "4953e568-b9e0-4f73-a844-7e40790e244c",
+      "name": "Send to Gmail",
+      "webhookId": "309db743-e988-4a22-9427-ed4be5e3ef9a",
+      "credentials": {
+        "googleApi": {
+          "id": "q5K01vTPzaavu1Y4",
+          "name": "Google Service Account account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Telegram Trigger').item.json.message.from.id }} //put the id you want to send to",
+        "text": "={{ `### 📝 New Work Log Submitted\n\n---\n\n- **📁 Project:** ${$json.project_name}\n- **⏱️ Duration:** ${$json.minutes_worked} minutes\n- **💼 Professional Summary:**\n${$json.professional_description}` }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1552,
+        0
+      ],
+      "id": "873b6226-a71d-4b00-a773-9bfbe14cea19",
+      "name": "Send to Telegram",
+      "webhookId": "69d5f1a5-c055-4724-8648-f20af23e1fa8",
+      "credentials": {
+        "telegramApi": {
+          "id": "j6UoP8DnUHEyNaPv",
+          "name": "Bliksem Acc"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "guildId": {
+          "__rl": true,
+          "value": "1342115137108185161",
+          "mode": "list",
+          "cachedResultName": "BLXPAB TEST",
+          "cachedResultUrl": "https://discord.com/channels/1342115137108185161"
+        },
+        "channelId": {
+          "__rl": true,
+          "value": "1342115137758429258",
+          "mode": "list",
+          "cachedResultName": "general-main",
+          "cachedResultUrl": "https://discord.com/channels/1342115137108185161/1342115137758429258"
+        },
+        "content": "={{ `### 📝 New Work Log Submitted\n\n---\n\n- **📁 Project:** ${$json.project_name}\n- **⏱️ Duration:** ${$json.minutes_worked} minutes\n- **💼 Professional Summary:**\n${$json.professional_description}` }}\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.discord",
+      "typeVersion": 2,
+      "position": [
+        1552,
+        304
+      ],
+      "id": "61964e17-73da-4559-bb87-f749e75039d0",
+      "name": "Send to Discord",
+      "webhookId": "afeae6b9-e72a-46c0-827b-8840279507a3",
+      "credentials": {
+        "discordBotApi": {
+          "id": "vVyR5qX10qJjpB91",
+          "name": "Bliksem Discord Bot account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1552,
+        160
+      ],
+      "id": "cfde4ec9-547f-4bb5-b62b-7ae87e0ece92",
+      "name": "Send to Webhook"
+    },
+    {
+      "parameters": {
+        "model": "llama-3.1-8b-instant",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [
+        560,
+        320
+      ],
+      "id": "e2fcb9c6-5317-492d-abee-f8fd364c9fa2",
+      "name": "Groq Chat Model",
+      "credentials": {
+        "groqApi": {
+          "id": "SpMVBXJG17bfObKc",
+          "name": "Pablo Groq account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.destination_app }}",
+                    "rightValue": "Gmail",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "37fa85a4-04bf-489c-a235-8b68822891ee"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Gmail"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "38bbcf2e-8ca4-4e81-85e2-f1a2d4f63ddc",
+                    "leftValue": "={{ $json.destination_app }}",
+                    "rightValue": "Telegram",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Telegram"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "f634ead4-b217-494d-a1c7-bf1e875f2eda",
+                    "leftValue": "={{ $json.destination_app }}",
+                    "rightValue": "Webhook",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Webhook"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "f65968e9-8a64-49eb-ad76-f195cfd255f9",
+                    "leftValue": "={{ $json.destination_app }}",
+                    "rightValue": "Discord",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Discord"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        1344,
+        48
+      ],
+      "id": "acaba204-5180-4166-a42b-40900984409d",
+      "name": "Where to send?"
+    },
+    {
+      "parameters": {
+        "content": "## Ingestion & Classification Core\nIntercepts unstructured, natural language developer input via conversational webhooks. Utilizes structured entity extraction schemas to distill casual phrases into exact calculated minutes, explicit project keys, and client tags.",
+        "height": 1056,
+        "width": 576,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        496,
+        -560
+      ],
+      "typeVersion": 1,
+      "id": "b595c031-3899-4559-ba36-e2aadfc2a4df",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "content": "## Dynamic Multi-Channel Router\nEvaluates the AI’s extraction intent metadata to systematically map payloads into the target operational workspace (Discord webhooks, internal data ledgers, or automated enterprise email delivery)",
+        "height": 800,
+        "width": 704
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        1088,
+        -304
+      ],
+      "typeVersion": 1,
+      "id": "0c2d29dc-c724-4036-8988-6b9e3e58397c",
+      "name": "Sticky Note2"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Telegram Trigger": {
+      "main": [
+        [
+          {
+            "node": "Action: Typing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Date & Time": {
+      "ai_tool": [
+        [
+          {
+            "node": "Data Extraction Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Data Extraction Agent": {
+      "main": [
+        [
+          {
+            "node": "Data organizer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Data Extraction Agent",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Action: Typing": {
+      "main": [
+        [
+          {
+            "node": "Data Extraction Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Data organizer": {
+      "main": [
+        [
+          {
+            "node": "Where to send?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Groq Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Data Extraction Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Where to send?": {
+      "main": [
+        [
+          {
+            "node": "Send to Gmail",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send to Telegram",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send to Discord",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "d59b13bd-7091-4e5c-87cd-25e5358c19b9",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "0b551a274afbd16f83492c9d02a91ddb0a0ff39cc3e0238b5ed00a1ee885346b"
+  },
+  "id": "qYxCQDYTw6zMCXqG",
+  "tags": [
+    {
+      "updatedAt": "2026-07-03T07:27:54.591Z",
+      "createdAt": "2026-07-03T07:27:54.591Z",
+      "id": "mQgcHtr5GXN6XwDK",
+      "name": "For Client"
+    },
+    {
+      "updatedAt": "2026-07-03T07:27:35.635Z",
+      "createdAt": "2026-07-03T07:27:35.635Z",
+      "id": "ywYRWLvDDS6OWsVe",
+      "name": "Github"
+    }
+  ]
+}
